@@ -1,0 +1,42 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '1.5.21'
+}
+
+group = 'de.mueslee'
+version = '1.0-SNAPSHOT'
+
+def robocodeHome='D:/Programme/Robocode'
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
+    testImplementation 'org.assertj:assertj-core:3.20.2'
+    testImplementation 'org.awaitility:awaitility-kotlin:4.1.0'
+
+    implementation 'net.sf.robocode:robocode.core:1.9.4.2'
+    implementation 'net.sf.robocode:robocode.api:1.9.4.2'
+    implementation 'net.sf.robocode:robocode.repository:1.9.4.2'
+    implementation 'net.sf.robocode:robocode.host:1.9.4.2'
+    implementation 'net.sf.robocode:robocode.battle:1.9.4.2'
+    implementation 'net.sf.robocode:robocode.samples:1.9.4.2'
+}
+
+tasks.register('registerRobo', Copy) {
+    from fileTree("build/robocode/robots/").include("**/**/*.jar").files
+    into "$robocodeHome/robots"
+}
+
+repositories {
+    mavenCentral()
+}
+
+test {
+    useJUnitPlatform()
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = '11'
+}
+
+compileTestKotlin {
+    kotlinOptions.jvmTarget = '11'
+}
