@@ -9,8 +9,7 @@ import java.awt.Color
 open class KotoRobo : Robot() {
 
     override fun run() {
-        super.run()
-        setAllColors(Color.ORANGE)
+        setBodyColor(Color.GRAY)
 
         while (true) {
             turnGunLeft(10.0)
@@ -18,11 +17,11 @@ open class KotoRobo : Robot() {
     }
 
     override fun onBulletHit(event: BulletHitEvent) {
-        setScanColor(Color.ORANGE)
     }
 
     override fun onScannedRobot(event: ScannedRobotEvent) {
         fire(3.0)
+        turnGunLeft(0.0)
     }
 
     override fun onStatus(e: StatusEvent) {

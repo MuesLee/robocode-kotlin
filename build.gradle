@@ -37,7 +37,7 @@ task roboJar(type: Jar) {
     }
 
     from {
-        sourceSets.main.java
+        sourceSets.getByName("main").output
     }
 }
 
