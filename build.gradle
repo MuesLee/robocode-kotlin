@@ -3,9 +3,15 @@ plugins {
 }
 
 group = 'de.mueslee'
-version = '1.0-SNAPSHOT'
+version = '1.0'
 
-def robocodeHome='D:/Programme/Robocode'
+ext {
+    roboJarFileName = "${robotClass}"
+    buildBattleDir = "${rootDir}/config/battles/"
+    buildBattleFile = buildBattleDir + battleFile
+    robocodeBattlesDir = "${robocodeHome}/battles/"
+    robocodeBattleFile = robocodeBattlesDir + battleFile
+}
 
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
@@ -20,9 +26,87 @@ dependencies {
     implementation 'net.sf.robocode:robocode.samples:1.9.4.2'
 }
 
-tasks.register('registerRobo', Copy) {
-    from fileTree("build/robocode/robots/").include("**/**/*.jar").files
-    into "$robocodeHome/robots"
+task roboJar(type: Jar) {
+    group = 'robocode'
+
+    archivesBaseName = roboJarFileName
+    duplicatesStrategy = 'EXCLUDE'
+
+    manifest {
+        attributes "robots": "${robotClass}"
+    }
+
+    from {
+        sourceSets.main.java
+    }
+}
+
+task registerRobo {
+    dependsOn roboJar
+    group = 'robocode'
+
+    def intoPath = "${robocodeHome}/robots/"
+
+    copy {
+        from fileTree("${rootDir}/build/libs/").include("**/**/*.jar").files
+        into intoPath
+        eachFile { details ->
+            println "Copied ${details}"
+        }
+    }
+}
+
+task generateBattleFile {
+    dependsOn registerRobo
+    group = 'robocode'
+
+    def battleRobots = "${robotClassEnemy}, ${robotClass} ${robotVersion}"
+
+    doFirst {
+        ant.replace(file: buildBattleFile, token: '$selectedRobots$', value: battleRobots)
+    }
+
+    doLast {
+        copy {
+            from buildBattleFile
+            into robocodeBattlesDir
+            eachFile { details ->
+                println "Copied ${details}"
+            }
+        }
+    }
+}
+
+task startRobocode {
+    dependsOn roboJar, registerRobo, generateBattleFile
+    group = 'robocode'
+
+    doLast {
+        exec {
+            commandLine 'java',
+                    "-Xmx512M",
+                    "-Ddebug=true",
+                    "-DWORKINGDIRECTORY=${robocodeHome}",
+                    "-cp", "${robocodeHome}/libs/*", "robocode.Robocode",
+                    '-battle', robocodeBattleFile
+        }
+    }
+}
+
+
+task cleanup {
+    group = 'robocode'
+
+    doLast {
+        def robotsPath = "${robocodeDir}/robots/"
+        delete fileTree(robotsPath).matching {
+            include "**/${robotJarName}.jar"
+            include "**/robot.database"
+        }
+        delete fileTree(robocodeBattlesDir).matching {
+            include "**/${battleFile}"
+        }
+    }
 }
 
 repositories {

@@ -1,0 +1,8 @@
+robocode.battle.sentryBorderSize=100
+robocode.battle.numRounds=10
+robocode.battleField.width=800
+robocode.battle.gunCoolingRate=0.1
+robocode.battle.rules.inactivityTime=450
+robocode.battle.selectedRobots=sample.TrackFire, de.ts.robocode.robots.KotoRobo 1.0
+robocode.battle.hideEnemyNames=false
+robocode.battleField.height=800
