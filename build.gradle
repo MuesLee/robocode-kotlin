@@ -45,13 +45,13 @@ task registerRobo {
     dependsOn roboJar
     group = 'robocode'
 
-    def intoPath = "${robocodeHome}/robots/"
-
-    copy {
-        from fileTree("${rootDir}/build/libs/").include("**/**/*.jar").files
-        into intoPath
-        eachFile { details ->
-            println "Copied ${details}"
+    doLast {
+        copy {
+            from fileTree("${rootDir}/build/libs/").include("**/**/*.jar").files
+            into "${robocodeHome}/robots/"
+            eachFile { details ->
+                println "Copied ${details}"
+            }
         }
     }
 }
@@ -77,8 +77,24 @@ task generateBattleFile {
     }
 }
 
+task cleanup {
+    group = 'robocode'
+
+    doFirst {
+        def robotsPath = "${robocodeHome}/robots/"
+        delete fileTree(robotsPath).matching {
+            include "**/${roboJarFileName}*.jar"
+            include "**/robot.database"
+        }
+        delete fileTree(robocodeBattlesDir).matching {
+            include "**/${battleFile}"
+        }
+    }
+}
+tasks.clean.dependsOn(cleanup)
+
 task startRobocode {
-    dependsOn roboJar, registerRobo, generateBattleFile
+    dependsOn cleanup, roboJar, registerRobo, generateBattleFile
     group = 'robocode'
 
     doLast {
@@ -93,21 +109,6 @@ task startRobocode {
     }
 }
 
-
-task cleanup {
-    group = 'robocode'
-
-    doLast {
-        def robotsPath = "${robocodeDir}/robots/"
-        delete fileTree(robotsPath).matching {
-            include "**/${robotJarName}.jar"
-            include "**/robot.database"
-        }
-        delete fileTree(robocodeBattlesDir).matching {
-            include "**/${battleFile}"
-        }
-    }
-}
 
 repositories {
     mavenCentral()
