@@ -7,7 +7,7 @@ import robocode.control.RobocodeEngine
 import robocode.control.RobotSpecification
 import robocode.control.events.BattleAdaptor
 import robocode.control.events.BattleCompletedEvent
-import robocode.robotinterfaces.IBasicRobot
+import robocode.control.events.TurnEndedEvent
 import java.io.File
 
 class RobocodeTestEngine(robocodeHomePath: String) : BattleAdaptor() {
@@ -15,6 +15,8 @@ class RobocodeTestEngine(robocodeHomePath: String) : BattleAdaptor() {
     private val engine: RobocodeEngine
 
     private var completedEvent: BattleCompletedEvent? = null
+
+    private var statistics = BattleStatistics()
 
     init {
         registerLocalDevRobots()
@@ -38,7 +40,7 @@ class RobocodeTestEngine(robocodeHomePath: String) : BattleAdaptor() {
         val winnerResult = completedEvent!!.sortedResults.first()
         val roboUnderTestResult = completedEvent!!.indexedResults.first()
 
-        return TestBattleResult(selectedRobots[winnerResult.rank-1].name, roboUnderTestResult)
+        return TestBattleResult(selectedRobots[winnerResult.rank-1].name, roboUnderTestResult, statistics, battleSpec)
     }
 
     fun loadRobot(robotName: String): RobotSpecification {
@@ -49,6 +51,14 @@ class RobocodeTestEngine(robocodeHomePath: String) : BattleAdaptor() {
         completedEvent = event
     }
 
+    override fun onTurnEnded(event: TurnEndedEvent) {
+        val allBulletsShotByTestRobo = event.turnSnapshot.bullets.filter { it.ownerIndex == 1 }
+        val allBulletsThatHit = allBulletsShotByTestRobo.filter { it.victimIndex != -1 }
+
+        statistics.shotsFired += allBulletsShotByTestRobo.count()
+        statistics.shotsHit += allBulletsThatHit.count()
+    }
+
     private fun registerLocalDevRobots() {
         val executionPath = System.getProperty("user.dir")
         System.setProperty(SettingsManager.OPTIONS_DEVELOPMENT_PATH, "$executionPath/build/classes/kotlin/main")
@@ -56,5 +66,6 @@ class RobocodeTestEngine(robocodeHomePath: String) : BattleAdaptor() {
 
     private fun resetState() {
         completedEvent = null
+        statistics = BattleStatistics()
     }
 }
