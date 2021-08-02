@@ -63,10 +63,6 @@ task generateBattleFile {
     def battleRobots = "${robotClassEnemy}, ${robotClass} ${robotVersion}"
 
     doFirst {
-        ant.replace(file: buildBattleFile, token: '$selectedRobots$', value: battleRobots)
-    }
-
-    doLast {
         copy {
             from buildBattleFile
             into robocodeBattlesDir
@@ -74,6 +70,10 @@ task generateBattleFile {
                 println "Copied ${details}"
             }
         }
+    }
+
+    doLast {
+        ant.replace(file: robocodeBattlesDir + battleFile, token: '$selectedRobots$', value: battleRobots)
     }
 }
 
