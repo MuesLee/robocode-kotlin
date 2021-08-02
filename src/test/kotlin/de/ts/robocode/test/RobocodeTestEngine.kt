@@ -31,7 +31,7 @@ class RobocodeTestEngine(robocodeHomePath: String) : BattleAdaptor() {
 
         val selectedRobots =engine.getLocalRepository("$roboUnderTestName,${opponentNames.joinToString(separator = ",")}")
 
-        val numberOfRounds = 10
+        val numberOfRounds = 100
         val battleFieldSpec = BattlefieldSpecification(800, 600)
         val battleSpec = BattleSpecification(numberOfRounds, battleFieldSpec, selectedRobots)
 
