@@ -41,20 +41,20 @@ class KotoRoboTest {
 
     @ParameterizedTest(name = "should win every round versus {0}")
     @ValueSource(strings = [Robots.MyFirstJuniorRobot])
-    fun `should win 9 out of 10 rounds versus a decent opponent`(opponentName: String) {
+    fun `should win 98 percent of rounds versus a decent opponent`(opponentName: String) {
 
         val result = testEngine.startBattle(roboUnderTestName, opponentName)
 
         Assertions.assertThat(result.winnerName).isEqualTo(roboUnderTestName)
-        Assertions.assertThat(result.roboUnderTestResult.firsts).isGreaterThan(result.battleSpec.numRounds / 100 * 9)
+        Assertions.assertThat(result.roboUnderTestResult.firsts).isGreaterThan((result.battleSpec.numRounds / 100 * 9.8).toInt())
     }
 
     @Test
-    fun `should win at least 8 of 10 rounds versus all dumb opponents at once`() {
+    fun `should win at least 95 percent of rounds versus all dumb opponents at once`() {
 
         val result = testEngine.startBattle(roboUnderTestName, Robots.ALL_EASY_ROBOTS)
 
         Assertions.assertThat(result.winnerName).isEqualTo(roboUnderTestName)
-        Assertions.assertThat(result.roboUnderTestResult.firsts).isGreaterThan(result.battleSpec.numRounds / 100 * 8)
+        Assertions.assertThat(result.roboUnderTestResult.firsts).isGreaterThan((result.battleSpec.numRounds / 100 * 9.5).toInt())
     }
 }
