@@ -9,7 +9,7 @@ Edit the `gradle.properties` and change the `robocodeHome` path to your local `R
 
 You also need to change the path to your `Robocode` directory in the `KotoRoboTest.kt` file.
 
-To see your robot in action simply run: 
+To see the robot in action simply run: 
 ```
 ./gradlew startRobocode
 ```
@@ -47,6 +47,18 @@ Lay back and watch you robot fight.
 
 The `RobocodeTestEngine.kt` class configures the `Robocode` engine for usage in automated tests.
 It registers the robots under development and provides a simple way to start a battle and evaluate the `TestBattleResult.kt`
+
+Example:
+```kotlin
+val testEngine = RobocodeTestEngine("YOUR_ROBOCODE_HOME")
+
+val result = testEngine.startBattle("MyRobotUnderTest", "sample.SittingDuck")
+
+assertThat(result.winnerName).isEqualTo("MyRobotUnderTest")
+assertThat(result.roboUnderTestStatistics.accuracy()).isEqualTo(100)
+assertThat(result.roboUnderTestResult.firsts).isEqualTo(result.battleSpec.numRounds).`as` { "roboUnderTest should win every round" }
+
+```
 
 ## Robot
 
