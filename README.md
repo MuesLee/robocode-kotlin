@@ -1,4 +1,4 @@
-# Kotorobo
+# robocode-kotlin
 
 This project provides an implementation of a [Robocode](https://robocode.sourceforge.io/) robot in Kotlin
 and some tooling around it. 
