@@ -5,7 +5,7 @@ and some tooling around it.
 
 # Get Started
 
-Check the `gradle.properties` and change the paths / values if needed.
+Edit the `gradle.properties` and change the `robocodeHome` path to your local `Robocode` directory.
 
 You also need to change the path to your `Robocode` directory in the `KotoRoboTest.kt` file.
 
@@ -21,7 +21,7 @@ Most of the paths and stuff are configurable in the `gradle.properties`
 
 ### roboJar
 
-Builds a `Robocode` compatible jar file which contains the `KotoRobo` class and the `KotoRobo.properties` file.
+Builds a `Robocode` compatible `jar` file which contains the `KotoRobo` class and the `KotoRobo.properties` file.
 
 Does not compute the codesize though.
 
