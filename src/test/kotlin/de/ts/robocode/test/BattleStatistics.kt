@@ -1,9 +1,13 @@
 package de.ts.robocode.test
 
+import robocode.control.snapshot.IBulletSnapshot
+
 class BattleStatistics {
 
-    var shotsFired: Int = 0
-    var shotsHit: Int = 0
+    val shotsFired: MutableMap<Int, IBulletSnapshot> = HashMap()
+    val shotsHit: MutableMap<Int, IBulletSnapshot> = HashMap()
 
-    fun accuracy() = if (shotsHit == 0) 0 else (shotsFired / shotsHit) * 100
+    var wallHitCount: Int = 0
+
+    fun accuracy() = if (shotsHit.isEmpty()) 0 else (shotsFired.size / shotsHit.size) * 100
 }
