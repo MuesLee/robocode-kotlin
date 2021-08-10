@@ -21,6 +21,17 @@ class KotoRobo : AdvancedRobot() {
     private var lastPosition: Point2D.Double = Point2D.Double()
     private var currentPosition: Point2D.Double = Point2D.Double()
 
+    private fun init() {
+        setColors(Color.YELLOW, Color.red, Color.orange)
+        isAdjustGunForRobotTurn = true
+        isAdjustRadarForGunTurn = true
+
+        setTurnRadarRightRadians(Double.POSITIVE_INFINITY)
+        currentPosition = Point2D.Double(x, y)
+        lastPosition = currentPosition
+        nextDestination = lastPosition
+    }
+
     override fun run() {
         init()
 
@@ -34,15 +45,26 @@ class KotoRobo : AdvancedRobot() {
         } while (true)
     }
 
-    private fun init() {
-        setColors(Color.YELLOW, Color.red, Color.orange)
-        isAdjustGunForRobotTurn = true
-        isAdjustRadarForGunTurn = true
+    override fun onScannedRobot(e: ScannedRobotEvent) {
+        if (others == 1) setTurnRadarLeftRadians(radarTurnRemainingRadians)
 
-        setTurnRadarRightRadians(Double.POSITIVE_INFINITY)
-        currentPosition = Point2D.Double(x, y)
-        lastPosition = currentPosition
-        nextDestination = lastPosition
+        enemies.putIfAbsent(e.name, Enemy(e.name, Point2D.Double()))
+
+        val scannedEnemy = enemies[e.name] as Enemy
+        scannedEnemy.energy = e.energy
+        scannedEnemy.pos = currentPosition.extrapolate(e.distance, headingRadians + e.bearingRadians)
+
+        if (target == null || e.distance < currentPosition.distance(target!!.pos)) {
+            target = scannedEnemy
+        }
+    }
+
+    override fun onRobotDeath(e: RobotDeathEvent) {
+        if (target?.name == e.name) {
+            target = null
+        }
+
+        enemies.remove(e.name)
     }
 
     private fun attackTarget(target: Enemy) {
@@ -96,28 +118,6 @@ class KotoRobo : AdvancedRobot() {
             forceFromLastPosition += forceForEnemy
         }
         return forceFromLastPosition
-    }
-
-    override fun onScannedRobot(e: ScannedRobotEvent) {
-        if (others == 1) setTurnRadarLeftRadians(radarTurnRemainingRadians)
-
-        enemies.putIfAbsent(e.name, Enemy(e.name, Point2D.Double()))
-
-        val scannedEnemy = enemies[e.name] as Enemy
-        scannedEnemy.energy = e.energy
-        scannedEnemy.pos = currentPosition.extrapolate(e.distance, headingRadians + e.bearingRadians)
-
-        if (target == null || e.distance < currentPosition.distance(target!!.pos)) {
-            target = scannedEnemy
-        }
-    }
-
-    override fun onRobotDeath(e: RobotDeathEvent) {
-        if (target?.name == e.name) {
-            target = null
-        }
-
-        enemies.remove(e.name)
     }
 
     private fun Point2D.Double.angleTo(otherPoint2D: Point2D.Double): Double {
