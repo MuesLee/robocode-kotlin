@@ -9,6 +9,7 @@ import robocode.control.events.BattleAdaptor
 import robocode.control.events.BattleCompletedEvent
 import robocode.control.events.TurnEndedEvent
 import robocode.control.snapshot.BulletState
+import robocode.control.snapshot.RobotState
 import java.io.File
 
 class RobocodeTestEngine(robocodeHomePath: String) : BattleAdaptor() {
@@ -62,11 +63,9 @@ class RobocodeTestEngine(robocodeHomePath: String) : BattleAdaptor() {
 
     override fun onTurnEnded(event: TurnEndedEvent) {
         val turnSnapshot = event.turnSnapshot
-
         val testRobo = turnSnapshot.robots.first { it.robotIndex == 0 }
-        if (testRobo.x <= ROBO_SIZE || testRobo.x >= battlefieldSpecification.height - ROBO_SIZE ||
-            testRobo.y <= ROBO_SIZE || testRobo.y >= battlefieldSpecification.height - ROBO_SIZE
-        ) {
+
+        if (testRobo.state == RobotState.HIT_WALL) {
             statistics.wallHitCount++
         }
 

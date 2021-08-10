@@ -29,6 +29,16 @@ class KotoRoboTest {
         Assertions.assertThat(result.roboUnderTestStatistics.accuracy()).isEqualTo(100)
     }
 
+    @Test
+    fun `should hit the wall less then 1 time avg per round versus Corners`() {
+
+        val result = testEngine.startBattle(roboUnderTestName, Robots.Corners)
+
+        val roundCount = result.battleSpec.numRounds
+        val wallHitCount = result.roboUnderTestStatistics.wallHitCount
+        Assertions.assertThat(wallHitCount).isLessThan(roundCount)
+    }
+
     @ParameterizedTest(name = "should win every round versus {0}")
     @ValueSource(strings = [Robots.SittingDuck, Robots.Corners])
     fun `should win every round versus a dumb opponent`(opponentName: String) {
@@ -53,6 +63,14 @@ class KotoRoboTest {
     fun `should win at least 95 percent of rounds versus all dumb opponents at once`() {
 
         val result = testEngine.startBattle(roboUnderTestName, Robots.ALL_EASY_ROBOTS)
+
+        Assertions.assertThat(result.winnerName).isEqualTo(roboUnderTestName)
+        Assertions.assertThat(result.roboUnderTestResult.firsts).isGreaterThan((result.battleSpec.numRounds / 100 * 9.5).toInt())
+    }
+    @Test
+    fun `should win at least 95 percent of Battle Royale`() {
+
+        val result = testEngine.startBattle(roboUnderTestName, Robots.BATTLE_ROYALE_ROBOTS)
 
         Assertions.assertThat(result.winnerName).isEqualTo(roboUnderTestName)
         Assertions.assertThat(result.roboUnderTestResult.firsts).isGreaterThan((result.battleSpec.numRounds / 100 * 9.5).toInt())
