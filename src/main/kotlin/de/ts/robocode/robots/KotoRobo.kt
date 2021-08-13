@@ -164,12 +164,9 @@ class KotoRobo : AdvancedRobot() {
             return
         }
 
-        println("strats: $statsForThisTarget")
-
         val headOnStats = statsForThisTarget[HEAD_ON_TARGETING]!!
 
         if(headOnStats.shotsFired < 10) {
-            println("Keep trying HEAD ON")
             headOnTargeting(target)
             return
         }
@@ -177,7 +174,6 @@ class KotoRobo : AdvancedRobot() {
         if (ALL_TARGETING_STRATEGIES.size > statsForThisTarget.size) {
             println("HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]!!.accuracy()}")
             if (headOnStats.accuracy() < 50) {
-                println("SWITCHING TO LINEAR")
                 linearTargeting(target)
             }
 
@@ -188,13 +184,11 @@ class KotoRobo : AdvancedRobot() {
         val linearStats = statsForThisTarget[LINEAR_TARGETING]!!
 
         if (linearStats.shotsFired < 10) {
-            println("Keep trying LINEAR")
             linearTargeting(target)
             return
         }
 
-        println("HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]!!.accuracy()}")
-        println("LINEAR ACC ${statsForThisTarget[LINEAR_TARGETING]!!.accuracy()}")
+        println("${target.name} HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]!!.accuracy()} LINEAR ACC ${statsForThisTarget[LINEAR_TARGETING]!!.accuracy()}")
 
         val bestTargetingType = statsForThisTarget.values.maxOrNull()!!.targetingType
 
@@ -219,8 +213,6 @@ class KotoRobo : AdvancedRobot() {
             TARGETING_STATISTICS[target.name]!![HEAD_ON_TARGETING]!!.shotsFired++
 
             bulletTracker[firedBullet] = ShotAttempt(target.name, HEAD_ON_TARGETING)
-
-            println("USED HEAD ON TARGETING")
         }
     }
 
@@ -248,8 +240,6 @@ class KotoRobo : AdvancedRobot() {
             )
             TARGETING_STATISTICS[target.name]!![LINEAR_TARGETING]!!.shotsFired++
             bulletTracker[firedBullet] = ShotAttempt(target.name, LINEAR_TARGETING)
-
-            println("USED LINEAR TARGETING")
         }
     }
 
