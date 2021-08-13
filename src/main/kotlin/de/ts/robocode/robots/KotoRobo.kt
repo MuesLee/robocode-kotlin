@@ -6,7 +6,6 @@ import java.awt.Color
 import java.awt.Graphics2D
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
-import java.util.*
 import kotlin.collections.HashMap
 import kotlin.math.*
 
@@ -21,11 +20,13 @@ class KotoRobo : AdvancedRobot() {
         private const val HEAD_ON_TARGETING = 0
 
         private val ALL_TARGETING_STRATEGIES = listOf(LINEAR_TARGETING, HEAD_ON_TARGETING)
+
+        @JvmStatic
+        private val TARGETING_STATISTICS: MutableMap<String, MutableMap<Int, TargetingStatistics>> = HashMap()
     }
 
     private var enemies: MutableMap<String, Enemy> = HashMap()
 
-    private var targetingStatistics: MutableMap<String, MutableMap<Int, TargetingStatistics>> = HashMap()
     private var bulletTracker: MutableMap<Bullet, ShotAttempt> = HashMap()
 
     private var target: Enemy? = null
@@ -96,7 +97,7 @@ class KotoRobo : AdvancedRobot() {
         val hitShotAttempt = bulletTracker.remove(event.bullet) ?: return
         if (event.name != hitShotAttempt.targetName) return
 
-        targetingStatistics[hitShotAttempt.targetName]!![hitShotAttempt.targetingType]!!.shotsHit++
+        TARGETING_STATISTICS[hitShotAttempt.targetName]!![hitShotAttempt.targetingType]!!.shotsHit++
     }
 
     override fun onBulletMissed(event: BulletMissedEvent) {
@@ -160,7 +161,7 @@ class KotoRobo : AdvancedRobot() {
 
     private fun shootTarget(target: Enemy) {
 
-        val statsForThisTarget = targetingStatistics[target.name]
+        val statsForThisTarget = TARGETING_STATISTICS[target.name]
 
         if (statsForThisTarget == null) {
             headOnTargeting(target)
@@ -215,11 +216,11 @@ class KotoRobo : AdvancedRobot() {
             val firedBullet =
                 setFireBullet((energy / 6.0).coerceAtMost(1300.0 / target.distance).coerceAtMost(target.energy / 3.0))
 
-            targetingStatistics.putIfAbsent(
+            TARGETING_STATISTICS.putIfAbsent(
                 target.name,
                 mutableMapOf(LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING), HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING))
             )
-            targetingStatistics[target.name]!![HEAD_ON_TARGETING]!!.shotsFired++
+            TARGETING_STATISTICS[target.name]!![HEAD_ON_TARGETING]!!.shotsFired++
 
             bulletTracker[firedBullet] = ShotAttempt(target.name, HEAD_ON_TARGETING)
 
@@ -245,11 +246,11 @@ class KotoRobo : AdvancedRobot() {
 
         if (gunTurnRemaining <= 0.5 && energy > 1 && gunHeat == 0.0) {
             val firedBullet = setFireBullet(firePower)
-            targetingStatistics.putIfAbsent(
+            TARGETING_STATISTICS.putIfAbsent(
                 target.name,
                 mutableMapOf(LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING), HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING))
             )
-            targetingStatistics[target.name]!![LINEAR_TARGETING]!!.shotsFired++
+            TARGETING_STATISTICS[target.name]!![LINEAR_TARGETING]!!.shotsFired++
             bulletTracker[firedBullet] = ShotAttempt(target.name, LINEAR_TARGETING)
 
             println("USED LINEAR TARGETING")
