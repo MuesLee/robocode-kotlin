@@ -1,26 +1,32 @@
 package de.ts.robocode.robots
 
-import robocode.AdvancedRobot
-import robocode.HitWallEvent
-import robocode.RobotDeathEvent
-import robocode.ScannedRobotEvent
+import robocode.*
 import robocode.util.Utils
 import java.awt.Color
+import java.awt.Graphics2D
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
-import kotlin.math.abs
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
+import java.util.*
+import kotlin.collections.HashMap
+import kotlin.math.*
+
 
 class KotoRobo : AdvancedRobot() {
 
     companion object {
         private const val MINIMUM_MOVEMENT_DISTANCE: Int = 15
-        private const val ROBOT_SIZE: Double = 18.0
+        private const val HALF_ROBOT_SIZE: Double = 18.0
+
+        private const val LINEAR_TARGETING = 1
+        private const val HEAD_ON_TARGETING = 0
+
+        private val ALL_TARGETING_STRATEGIES = listOf(LINEAR_TARGETING, HEAD_ON_TARGETING)
     }
 
-    private var enemies: HashMap<String, Enemy> = HashMap()
+    private var enemies: MutableMap<String, Enemy> = HashMap()
+
+    private var targetingStatistics: MutableMap<String, MutableMap<Int, TargetingStatistics>> = HashMap()
+    private var bulletTracker: MutableMap<Bullet, ShotAttempt> = HashMap()
 
     private var target: Enemy? = null
     private var nextDestination: Point2D.Double = Point2D.Double()
@@ -36,13 +42,17 @@ class KotoRobo : AdvancedRobot() {
         setTurnRadarRightRadians(Double.POSITIVE_INFINITY)
         lastPosition = currentPosition()
         nextDestination = lastPosition
+
+        enemies.clear()
+        bulletTracker.clear()
     }
 
     override fun run() {
         init()
 
         do {
-            if (hasTarget() && others <= enemies.size) {
+            adjustRadar()
+            if (hasTarget() && knowsEveryLivingRobot()) {
                 attackTarget(target!!)
             }
             execute()
@@ -50,14 +60,26 @@ class KotoRobo : AdvancedRobot() {
     }
 
     override fun onScannedRobot(e: ScannedRobotEvent) {
-        if (others == 1) setTurnRadarLeftRadians(radarTurnRemainingRadians)
-        enemies.putIfAbsent(e.name, Enemy(e.name, Point2D.Double(), e.bearing))
+        val scannedEnemy = Enemy(
+            name = e.name,
+            pos = currentPosition().extrapolate(e.distance, headingRadians + e.bearingRadians),
+            bearing = e.bearing,
+            bearingRadians = e.bearingRadians,
+            heading = e.heading,
+            headingRadians = e.headingRadians,
+            velocity = e.velocity,
+            distance = e.distance,
+            timeOfScan = e.time,
+            energy = e.energy
+        )
 
-        val scannedEnemy = enemies[e.name] as Enemy
-        scannedEnemy.energy = e.energy
-        scannedEnemy.pos = currentPosition().extrapolate(e.distance, headingRadians + e.bearingRadians)
+        enemies[e.name] = scannedEnemy
 
-        if (target == null || e.distance < currentPosition().distance(target!!.pos)) {
+        if (scannedEnemy.name == target?.name) {
+            target = scannedEnemy
+        }
+
+        if (target == null || e.distance < target!!.distance) {
             target = scannedEnemy
         }
     }
@@ -70,13 +92,24 @@ class KotoRobo : AdvancedRobot() {
         enemies.remove(e.name)
     }
 
-    private fun attackTarget(target: Enemy) {
-        val distanceToTarget = currentPosition().distance(target.pos)
+    override fun onBulletHit(event: BulletHitEvent) {
+        val hitShotAttempt = bulletTracker.remove(event.bullet) ?: return
+        if (event.name != hitShotAttempt.targetName) return
 
-        if (hasTarget() && gunTurnRemaining == 0.0 && energy > 1) {
-            setFire((energy / 6.0).coerceAtMost(1300.0 / distanceToTarget).coerceAtMost(target.energy / 3.0))
-        }
-        setTurnGunRightRadians(Utils.normalRelativeAngle(target.pos.angleTo(currentPosition()) - gunHeadingRadians))
+        targetingStatistics[hitShotAttempt.targetName]!![hitShotAttempt.targetingType]!!.shotsHit++
+    }
+
+    override fun onBulletMissed(event: BulletMissedEvent) {
+        bulletTracker.remove(event.bullet)
+    }
+
+    override fun onBulletHitBullet(event: BulletHitBulletEvent) {
+        bulletTracker.remove(event.bullet)
+    }
+
+    private fun attackTarget(target: Enemy) {
+
+        shootTarget(target)
 
         val distanceToNextDestination = currentPosition().distance(nextDestination)
 
@@ -84,15 +117,15 @@ class KotoRobo : AdvancedRobot() {
             lastPosition = nextDestination
 
             val battleField = Rectangle2D.Double(
-                ROBOT_SIZE,
-                ROBOT_SIZE,
-                battleFieldWidth - ROBOT_SIZE * 4,
-                battleFieldHeight - ROBOT_SIZE * 4
+                HALF_ROBOT_SIZE,
+                HALF_ROBOT_SIZE,
+                battleFieldWidth - HALF_ROBOT_SIZE * 2,
+                battleFieldHeight - HALF_ROBOT_SIZE * 2
             )
             var testPoint: Point2D.Double
             var i = 0
             do {
-                val distance = (distanceToTarget * 0.8).coerceAtMost(MINIMUM_MOVEMENT_DISTANCE + 200 * Math.random())
+                val distance = (target.distance * 0.8).coerceAtMost(MINIMUM_MOVEMENT_DISTANCE + 200 * Math.random())
                 val angle = Math.PI * (1 + 3 * Math.random())
                 testPoint = currentPosition().extrapolate(distance, angle)
 
@@ -101,19 +134,151 @@ class KotoRobo : AdvancedRobot() {
                 }
             } while (i++ < 200)
         }
-            moveDirection = 1
-            var angle = nextDestination.angleTo(currentPosition()) - headingRadians
-            if (cos(angle) < 0) {
-                angle += Math.PI
-                moveDirection = -1
-            }
+        moveDirection = 1
+        var angle = nextDestination.angleTo(currentPosition()) - headingRadians
+        if (cos(angle) < 0) {
+            angle += Math.PI
+            moveDirection = -1
+        }
 
-            setAhead(distanceToNextDestination * moveDirection)
-            setTurnRightRadians(Utils.normalRelativeAngle(angle).also { angle = it })
+        setAhead(distanceToNextDestination * moveDirection)
+        setTurnRightRadians(Utils.normalRelativeAngle(angle).also { angle = it })
     }
 
-    override fun onHitWall(event: HitWallEvent) {
-        super.onHitWall(event)
+    private fun adjustRadar() {
+        var radarOffset = 360.0
+
+        if (knowsEveryLivingRobot() && hasTarget() && time - target!!.timeOfScan < 4) {
+            radarOffset = radarHeadingRadians - absbearing(currentPosition(), target!!.pos)
+
+            if (radarOffset < 0) radarOffset -= PI / 8 else radarOffset += PI / 8
+        }
+        setTurnRadarLeftRadians(normaliseBearing(radarOffset))
+    }
+
+    private fun knowsEveryLivingRobot() = others == enemies.size
+
+    private fun shootTarget(target: Enemy) {
+
+        val statsForThisTarget = targetingStatistics[target.name]
+
+        if (statsForThisTarget == null) {
+            headOnTargeting(target)
+            return
+        }
+
+        println("strats: $statsForThisTarget")
+
+        val headOnStats = statsForThisTarget[HEAD_ON_TARGETING]!!
+
+        if(headOnStats.shotsFired < 10) {
+            println("Keep trying HEAD ON")
+            headOnTargeting(target)
+            return
+        }
+
+        if (ALL_TARGETING_STRATEGIES.size > statsForThisTarget.size) {
+            println("HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]!!.accuracy()}")
+            if (headOnStats.accuracy() < 50) {
+                println("SWITCHING TO LINEAR")
+                linearTargeting(target)
+            }
+
+            headOnTargeting(target)
+            return
+        }
+
+        val linearStats = statsForThisTarget[LINEAR_TARGETING]!!
+
+        if (linearStats.shotsFired < 10) {
+            println("Keep trying LINEAR")
+            linearTargeting(target)
+            return
+        }
+
+        println("HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]!!.accuracy()}")
+        println("LINEAR ACC ${statsForThisTarget[LINEAR_TARGETING]!!.accuracy()}")
+
+        val bestTargetingType = statsForThisTarget.values.maxOrNull()!!.targetingType
+
+        if (bestTargetingType == LINEAR_TARGETING) {
+            linearTargeting(target)
+        } else {
+            headOnTargeting(target)
+        }
+    }
+
+    private fun headOnTargeting(target: Enemy) {
+        setTurnGunRightRadians(Utils.normalRelativeAngle(target.pos.angleTo(currentPosition()) - gunHeadingRadians))
+
+        if (hasTarget() && gunTurnRemaining <= 0.5 && energy > 1 && gunHeat == 0.0) {
+            val firedBullet =
+                setFireBullet((energy / 6.0).coerceAtMost(1300.0 / target.distance).coerceAtMost(target.energy / 3.0))
+
+            targetingStatistics.putIfAbsent(
+                target.name,
+                mutableMapOf(LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING), HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING))
+            )
+            targetingStatistics[target.name]!![HEAD_ON_TARGETING]!!.shotsFired++
+
+            bulletTracker[firedBullet] = ShotAttempt(target.name, HEAD_ON_TARGETING)
+
+            println("USED HEAD ON TARGETING")
+        }
+    }
+
+    private fun linearTargeting(target: Enemy) {
+
+        val firePower = (energy / 6.0).coerceAtMost(1300.0 / target.distance).coerceAtMost(target.energy / 3.0)
+
+        val estimatedTimeToHit = time + (target.distance / (20 - (3 * firePower))).toInt()
+
+        val guessX = target.guessX(estimatedTimeToHit, battleFieldWidth)
+        val guessY = target.guessY(estimatedTimeToHit, battleFieldHeight)
+
+        val estimatedTargetPosition =
+            Point2D.Double(guessX, guessY)
+
+        val gunOffset = gunHeadingRadians - absbearing(currentPosition(), estimatedTargetPosition)
+
+        setTurnGunLeftRadians(normaliseBearing(gunOffset))
+
+        if (gunTurnRemaining <= 0.5 && energy > 1 && gunHeat == 0.0) {
+            val firedBullet = setFireBullet(firePower)
+            targetingStatistics.putIfAbsent(
+                target.name,
+                mutableMapOf(LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING), HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING))
+            )
+            targetingStatistics[target.name]!![LINEAR_TARGETING]!!.shotsFired++
+            bulletTracker[firedBullet] = ShotAttempt(target.name, LINEAR_TARGETING)
+
+            println("USED LINEAR TARGETING")
+        }
+    }
+
+    override fun onPaint(g: Graphics2D) {
+        if (!hasTarget()) return
+        val targetX = target!!.pos.x.toInt()
+        val targetY = target!!.pos.y.toInt()
+        g.color = Color.RED
+        g.drawLine(targetX, targetY, x.toInt(), y.toInt())
+        g.fillRect(targetX - 18, targetY - 18, 36, 36)
+
+        val firePower = (energy / 6.0).coerceAtMost(1300.0 / target!!.distance).coerceAtMost(target!!.energy / 3.0)
+
+        val estimatedTimeToHit = time + (target!!.distance / (20 - (3 * firePower))).toInt()
+
+        val estimatedTargetPosition =
+            Point2D.Double(
+                target!!.guessX(estimatedTimeToHit, battleFieldWidth),
+                target!!.guessY(estimatedTimeToHit, battleFieldHeight)
+            )
+
+        val estimatedX = estimatedTargetPosition.x.toInt()
+        val estimatedY = estimatedTargetPosition.y.toInt()
+        g.color = Color.BLUE
+        g.drawLine(estimatedX, estimatedY, x.toInt(), y.toInt())
+        g.fillRect(estimatedX - 18, estimatedY - 18, 36, 36)
     }
 
     private fun currentPosition(): Point2D.Double {
@@ -143,10 +308,70 @@ class KotoRobo : AdvancedRobot() {
         return Point2D.Double(this.x + dist * sin(ang), this.y + dist * cos(ang))
     }
 
+    private fun normaliseBearing(ang: Double): Double {
+        var normAng = ang
+        if (normAng > PI) normAng -= 2 * PI
+        if (normAng < -PI) normAng += 2 * PI
+        return normAng
+    }
+
+    private fun absbearing(p1: Point2D.Double, p2: Point2D.Double): Double {
+        val xo = p2.x - p1.x
+        val yo = p2.y - p1.y
+        val h: Double = p2.distance(p1)
+        if (xo > 0 && yo > 0) {
+            return asin(xo / h)
+        }
+        if (xo > 0 && yo < 0) {
+            return Math.PI - asin(xo / h)
+        }
+        if (xo < 0 && yo < 0) {
+            return Math.PI + asin(-xo / h)
+        }
+        return if (xo < 0 && yo > 0) {
+            2.0 * Math.PI - asin(-xo / h)
+        } else 0.0
+    }
+
     private data class Enemy(
         val name: String,
         var pos: Point2D.Double,
         var bearing: Double,
-        var energy: Double = 0.0
-    )
+        var bearingRadians: Double,
+        val heading: Double,
+        var headingRadians: Double,
+        var velocity: Double,
+        var distance: Double,
+        var timeOfScan: Long,
+        var energy: Double
+    ) {
+        fun guessX(atTime: Long, battleFieldWidth: Double): Double {
+            val diff: Long = atTime - timeOfScan
+            return (pos.x + sin(headingRadians) * velocity * diff).coerceAtMost(battleFieldWidth - HALF_ROBOT_SIZE)
+                .coerceAtLeast(HALF_ROBOT_SIZE)
+        }
+
+        fun guessY(atTime: Long, battleFieldHeight: Double): Double {
+            val diff: Long = atTime - timeOfScan
+            return (pos.y + cos(headingRadians) * velocity * diff).coerceAtMost(battleFieldHeight - HALF_ROBOT_SIZE)
+                .coerceAtLeast(HALF_ROBOT_SIZE)
+        }
+
+    }
+
+    private data class ShotAttempt(val targetName: String, val targetingType: Int)
+
+    private class TargetingStatistics(val targetingType: Int) : Comparable<TargetingStatistics> {
+        var shotsFired = 0
+        var shotsHit = 0
+        fun accuracy(): Double = if (shotsHit == 0) 0.00 else (shotsHit.toDouble() / shotsFired.toDouble()) * 100
+
+        override fun compareTo(other: TargetingStatistics): Int {
+            return compareValues(this.accuracy(), other.accuracy())
+        }
+
+        override fun toString(): String {
+            return "Type $targetingType, fired: $shotsFired, hit: $shotsHit, accuracy: ${accuracy()}"
+        }
+    }
 }

@@ -22,21 +22,21 @@ class KotoRoboTest {
     }
 
     @Test
-    fun `should hit every bullet versus Sittingduck`() {
+    fun `should hit at least 80 percent of bullets versus Sittingduck`() {
 
         val result = testEngine.startBattle(roboUnderTestName, Robots.SittingDuck)
 
-        Assertions.assertThat(result.roboUnderTestStatistics.accuracy()).isEqualTo(100)
+        Assertions.assertThat(result.roboUnderTestStatistics.accuracy()).isGreaterThan(80.00)
     }
 
     @Test
-    fun `should hit the wall less then 1 time avg per round versus Corners`() {
+    fun `should hit the wall less then 2 times avg per round versus Corners`() {
 
         val result = testEngine.startBattle(roboUnderTestName, Robots.Corners)
 
         val roundCount = result.battleSpec.numRounds
         val wallHitCount = result.roboUnderTestStatistics.wallHitCount
-        Assertions.assertThat(wallHitCount).isLessThan(roundCount)
+        Assertions.assertThat(wallHitCount).isLessThan(roundCount*2)
     }
 
     @ParameterizedTest(name = "should win every round versus {0}")

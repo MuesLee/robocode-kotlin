@@ -9,5 +9,9 @@ class BattleStatistics {
 
     var wallHitCount: Int = 0
 
-    fun accuracy() = if (shotsHit.isEmpty()) 0 else (shotsFired.size / shotsHit.size) * 100
+    /**
+     * This is the accuracy of ALL bullets fired. Keep in mind that there might be bullets that would hit,
+     * but do not reach the target before it dies from another bullet.
+     */
+    fun accuracy(): Double = if (shotsHit.isEmpty()) 0.0 else (shotsHit.size.toDouble() / shotsFired.size.toDouble()) * 100
 }
