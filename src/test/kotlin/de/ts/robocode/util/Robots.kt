@@ -9,7 +9,8 @@ object Robots {
     const val RamFire: String = "sample.RamFire"
     const val TrackFire: String = "sample.TrackFire"
     const val MyFirstRobot: String = "sample.MyFirstRobot"
+    const val Crazy: String = "sample.Crazy"
 
     const val ALL_EASY_ROBOTS = "$SittingDuck, $Fire, $Corners"
-    const val BATTLE_ROYALE_ROBOTS = "$RamFire, $TrackFire, $MyFirstRobot"
+    const val BATTLE_ROYALE_ROBOTS = "$RamFire, $TrackFire, $MyFirstRobot, $Crazy"
 }

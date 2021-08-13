@@ -30,6 +30,14 @@ class KotoRoboTest {
     }
 
     @Test
+    fun `should win every round versus RamFire`() {
+
+        val result = testEngine.startBattle(roboUnderTestName, Robots.RamFire)
+
+        Assertions.assertThat(result.roboUnderTestResult.firsts).isEqualTo(result.battleSpec.numRounds)
+    }
+
+    @Test
     fun `should hit the wall less then 2 times avg per round versus Corners`() {
 
         val result = testEngine.startBattle(roboUnderTestName, Robots.Corners)

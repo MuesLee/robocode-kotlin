@@ -31,7 +31,6 @@ class KotoRobo : AdvancedRobot() {
 
     private var target: Enemy? = null
     private var nextDestination: Point2D.Double = Point2D.Double()
-    private var lastPosition: Point2D.Double = Point2D.Double()
 
     private var moveDirection = 1
 
@@ -41,8 +40,7 @@ class KotoRobo : AdvancedRobot() {
         isAdjustRadarForGunTurn = true
 
         setTurnRadarRightRadians(Double.POSITIVE_INFINITY)
-        lastPosition = currentPosition()
-        nextDestination = lastPosition
+        nextDestination = currentPosition()
 
         enemies.clear()
         bulletTracker.clear()
@@ -115,8 +113,6 @@ class KotoRobo : AdvancedRobot() {
         val distanceToNextDestination = currentPosition().distance(nextDestination)
 
         if (distanceToNextDestination < MINIMUM_MOVEMENT_DISTANCE) {
-            lastPosition = nextDestination
-
             val battleField = Rectangle2D.Double(
                 HALF_ROBOT_SIZE,
                 HALF_ROBOT_SIZE,
@@ -289,16 +285,16 @@ class KotoRobo : AdvancedRobot() {
     private fun hasTarget() = target != null
 
     private fun ratePoint(p: Point2D.Double): Double {
-        var forceFromLastPosition = 1 / p.distanceSq(lastPosition)
+        var forceFromCurrentPosition = 1 / p.distanceSq(currentPosition())
 
         enemies.values.forEach {
             val threatLevelByEnergy = (it.energy / energy).coerceAtMost(2.0)
             val angleRating = 1 + abs(cos(currentPosition().angleTo(p) - it.pos.angleTo(p)))
             val forceForEnemy = threatLevelByEnergy * angleRating / p.distanceSq(it.pos)
 
-            forceFromLastPosition += forceForEnemy
+            forceFromCurrentPosition += forceForEnemy
         }
-        return forceFromLastPosition
+        return forceFromCurrentPosition
     }
 
     private fun Point2D.Double.angleTo(otherPoint2D: Point2D.Double): Double {
