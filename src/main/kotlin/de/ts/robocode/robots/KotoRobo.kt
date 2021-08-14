@@ -16,13 +16,13 @@ class KotoRobo : AdvancedRobot() {
         private const val MINIMUM_MOVEMENT_DISTANCE: Int = 15
         private const val HALF_ROBOT_SIZE: Double = 18.0
 
-        private const val LINEAR_TARGETING = 1
-        private const val HEAD_ON_TARGETING = 0
+        const val LINEAR_TARGETING = 1
+        const val HEAD_ON_TARGETING = 0
 
-        private val ALL_TARGETING_STRATEGIES = listOf(LINEAR_TARGETING, HEAD_ON_TARGETING)
+        private val ALL_TARGETING_STRATEGIES = listOf(HEAD_ON_TARGETING, LINEAR_TARGETING)
 
         @JvmStatic
-        private val TARGETING_STATISTICS: MutableMap<String, MutableMap<Int, TargetingStatistics>> = HashMap()
+        val TARGETING_STATISTICS: MutableMap<String, MutableMap<Int, TargetingStatistics>> = HashMap()
     }
 
     private var enemies: MutableMap<String, Enemy> = HashMap()
@@ -156,47 +156,38 @@ class KotoRobo : AdvancedRobot() {
     private fun knowsEveryLivingRobot() = others == enemies.size
 
     private fun shootTarget(target: Enemy) {
-
-        val statsForThisTarget = TARGETING_STATISTICS[target.name]
-
-        if (statsForThisTarget == null) {
-            headOnTargeting(target)
-            return
+        when (chooseBestTargetingStrategy(target)) {
+            HEAD_ON_TARGETING -> headOnTargeting(target)
+            LINEAR_TARGETING -> linearTargeting(target)
+            else -> headOnTargeting(target)
         }
+    }
 
-        val headOnStats = statsForThisTarget[HEAD_ON_TARGETING]!!
+    fun chooseBestTargetingStrategy(target: Enemy): Int {
+        val statsForThisTarget = TARGETING_STATISTICS[target.name] ?: return HEAD_ON_TARGETING
 
-        if(headOnStats.shotsFired < 10) {
-            headOnTargeting(target)
-            return
-        }
+        var bestStrategy: Int? = null
 
-        if (ALL_TARGETING_STRATEGIES.size > statsForThisTarget.size) {
-            println("HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]!!.accuracy()}")
-            if (headOnStats.accuracy() < 50) {
-                linearTargeting(target)
+        for (strategy in ALL_TARGETING_STRATEGIES) {
+            if (strategy !in statsForThisTarget) {
+                bestStrategy = strategy
+                break
             }
 
-            headOnTargeting(target)
-            return
+            if (strategy in statsForThisTarget &&
+                (statsForThisTarget[strategy]!!.shotsFired < 10 || statsForThisTarget[strategy]!!.accuracy() >= 75)
+            ) {
+                bestStrategy = strategy
+                break
+            }
         }
 
-        val linearStats = statsForThisTarget[LINEAR_TARGETING]!!
+        if (bestStrategy == null) bestStrategy = statsForThisTarget.values.maxOrNull()!!.targetingType
 
-        if (linearStats.shotsFired < 10) {
-            linearTargeting(target)
-            return
-        }
+        println("${target.name} HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]!!.accuracy()} LINEAR ACC ${statsForThisTarget[LINEAR_TARGETING]?.accuracy()}")
+        println("best strat is $bestStrategy")
 
-        println("${target.name} HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]!!.accuracy()} LINEAR ACC ${statsForThisTarget[LINEAR_TARGETING]!!.accuracy()}")
-
-        val bestTargetingType = statsForThisTarget.values.maxOrNull()!!.targetingType
-
-        if (bestTargetingType == LINEAR_TARGETING) {
-            linearTargeting(target)
-        } else {
-            headOnTargeting(target)
-        }
+        return bestStrategy
     }
 
     private fun headOnTargeting(target: Enemy) {
@@ -208,7 +199,10 @@ class KotoRobo : AdvancedRobot() {
 
             TARGETING_STATISTICS.putIfAbsent(
                 target.name,
-                mutableMapOf(LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING), HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING))
+                mutableMapOf(
+                    LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING),
+                    HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING)
+                )
             )
             TARGETING_STATISTICS[target.name]!![HEAD_ON_TARGETING]!!.shotsFired++
 
@@ -236,7 +230,10 @@ class KotoRobo : AdvancedRobot() {
             val firedBullet = setFireBullet(firePower)
             TARGETING_STATISTICS.putIfAbsent(
                 target.name,
-                mutableMapOf(LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING), HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING))
+                mutableMapOf(
+                    LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING),
+                    HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING)
+                )
             )
             TARGETING_STATISTICS[target.name]!![LINEAR_TARGETING]!!.shotsFired++
             bulletTracker[firedBullet] = ShotAttempt(target.name, LINEAR_TARGETING)
@@ -320,7 +317,7 @@ class KotoRobo : AdvancedRobot() {
         } else 0.0
     }
 
-    private data class Enemy(
+    data class Enemy(
         val name: String,
         var pos: Point2D.Double,
         var bearing: Double,
@@ -348,9 +345,12 @@ class KotoRobo : AdvancedRobot() {
 
     private data class ShotAttempt(val targetName: String, val targetingType: Int)
 
-    private class TargetingStatistics(val targetingType: Int) : Comparable<TargetingStatistics> {
-        var shotsFired = 0
-        var shotsHit = 0
+    class TargetingStatistics(
+        val targetingType: Int,
+        var shotsFired: Int = 0,
+        var shotsHit: Int = 0
+    ) : Comparable<TargetingStatistics> {
+
         fun accuracy(): Double = if (shotsHit == 0) 0.00 else (shotsHit.toDouble() / shotsFired.toDouble()) * 100
 
         override fun compareTo(other: TargetingStatistics): Int {
