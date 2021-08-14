@@ -143,22 +143,26 @@ class KotoRoboTest {
     }
 
     @Test
-    fun `should win at least 95 percent of rounds versus all dumb opponents at once`() {
+    fun `should win at least 98 percent of rounds and 99 percent of time in top 3 versus all easy opponents at once`() {
 
         val result = testEngine.startBattle(roboUnderTestName, Robots.ALL_EASY_ROBOTS)
 
         Assertions.assertThat(result.winnerName).isEqualTo(roboUnderTestName)
         Assertions.assertThat(result.roboUnderTestResult.firsts)
-            .isGreaterThan((result.battleSpec.numRounds / 100 * 9.5).toInt())
+            .isGreaterThan((result.battleSpec.numRounds / 100 * 9.8).toInt())
+        Assertions.assertThat(result.roboUnderTestResult.firsts + result.roboUnderTestResult.seconds + result.roboUnderTestResult.thirds)
+            .isGreaterThan((result.battleSpec.numRounds / 100 * 9.9).toInt())
     }
 
     @Test
-    fun `should win at least 95 percent of Battle Royale`() {
+    fun `should win at least 95 percent of rounds and 95 percent of time in top 3 of Battle Royale`() {
 
         val result = testEngine.startBattle(roboUnderTestName, Robots.BATTLE_ROYALE_ROBOTS)
 
         Assertions.assertThat(result.winnerName).isEqualTo(roboUnderTestName)
         Assertions.assertThat(result.roboUnderTestResult.firsts)
+            .isGreaterThan((result.battleSpec.numRounds / 100 * 9.5).toInt())
+        Assertions.assertThat(result.roboUnderTestResult.firsts + result.roboUnderTestResult.seconds + result.roboUnderTestResult.thirds)
             .isGreaterThan((result.battleSpec.numRounds / 100 * 9.5).toInt())
     }
 }
