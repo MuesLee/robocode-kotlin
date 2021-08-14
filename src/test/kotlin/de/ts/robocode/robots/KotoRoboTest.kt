@@ -85,6 +85,8 @@ class KotoRoboTest {
 
         val actual = robot.chooseBestTargetingStrategy(target)
 
+        Assertions.assertThat(KotoRobo.TARGETING_STATISTICS[target.name]!!.size).isEqualTo(KotoRobo.ALL_TARGETING_STRATEGIES.size)
+            .`as` { "This test should provide data for all available strategies" }
         Assertions.assertThat(actual).isEqualTo(KotoRobo.LINEAR_TARGETING)
     }
 

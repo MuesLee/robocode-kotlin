@@ -18,8 +18,7 @@ class KotoRobo : AdvancedRobot() {
 
         const val LINEAR_TARGETING = 1
         const val HEAD_ON_TARGETING = 0
-
-        private val ALL_TARGETING_STRATEGIES = listOf(HEAD_ON_TARGETING, LINEAR_TARGETING)
+        val ALL_TARGETING_STRATEGIES = listOf(HEAD_ON_TARGETING, LINEAR_TARGETING)
 
         @JvmStatic
         val TARGETING_STATISTICS: MutableMap<String, MutableMap<Int, TargetingStatistics>> = HashMap()
