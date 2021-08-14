@@ -106,7 +106,6 @@ class KotoRobo : AdvancedRobot() {
     }
 
     private fun attackTarget(target: Enemy) {
-
         shootTarget(target)
 
         val distanceToNextDestination = currentPosition().distance(nextDestination)
@@ -118,19 +117,11 @@ class KotoRobo : AdvancedRobot() {
                 battleFieldWidth - HALF_ROBOT_SIZE * 2,
                 battleFieldHeight - HALF_ROBOT_SIZE * 2
             )
-            var testPoint: Point2D.Double
-            var i = 0
-            do {
-                val distance = (target.distance * 0.8).coerceAtMost(MINIMUM_MOVEMENT_DISTANCE + 200 * Math.random())
-                val angle = Math.PI * (1 + 3 * Math.random())
-                testPoint = currentPosition().extrapolate(distance, angle)
 
-                if (battleField.contains(testPoint) && ratePoint(testPoint) < ratePoint(nextDestination)) {
-                    nextDestination = testPoint
-                }
-            } while (i++ < 200)
+           findNextDestination(target, battleField)
         }
         moveDirection = 1
+
         var angle = nextDestination.angleTo(currentPosition()) - headingRadians
         if (cos(angle) < 0) {
             angle += Math.PI
@@ -139,6 +130,23 @@ class KotoRobo : AdvancedRobot() {
 
         setAhead(distanceToNextDestination * moveDirection)
         setTurnRightRadians(Utils.normalRelativeAngle(angle).also { angle = it })
+    }
+
+    private fun findNextDestination(
+        target: Enemy,
+        battleField: Rectangle2D.Double
+    ) {
+        var testPoint: Point2D.Double?
+        var i = 0
+        do {
+            val distance = (target.distance * 0.8).coerceAtMost(MINIMUM_MOVEMENT_DISTANCE + 200 * Math.random())
+            val angle = Math.PI * (1 + 3 * Math.random())
+            testPoint = currentPosition().extrapolate(distance, angle)
+
+            if (battleField.contains(testPoint) && ratePoint(testPoint) < ratePoint(nextDestination)) {
+                nextDestination = testPoint
+            }
+        } while (i++ < 200)
     }
 
     private fun adjustRadar() {
@@ -276,9 +284,9 @@ class KotoRobo : AdvancedRobot() {
         enemies.values.forEach {
             val threatLevelByEnergy = (it.energy / energy).coerceAtMost(2.0)
             val angleRating = 1 + abs(cos(currentPosition().angleTo(p) - it.pos.angleTo(p)))
-            val forceForEnemy = threatLevelByEnergy * angleRating / p.distanceSq(it.pos)
+            val riskForEnemy = threatLevelByEnergy * angleRating / p.distanceSq(it.pos)
 
-            forceFromCurrentPosition += forceForEnemy
+            forceFromCurrentPosition += riskForEnemy
         }
         return forceFromCurrentPosition
     }
