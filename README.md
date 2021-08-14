@@ -62,7 +62,21 @@ assertThat(result.roboUnderTestResult.firsts).isEqualTo(result.battleSpec.numRou
 
 ## Robot
 
-The robot itself is useless so far. This may change in the future.
+### Targeting
+
+The robot can use HEAD-ON and LINEAR targeting and chooses the most successful one for each target. 
+
+It tracks every of its bullets and stores the accuracy data between rounds
+
+### Movement
+
+It moves in a combination of [risk-based](https://robowiki.net/wiki/Minimum_Risk_Movement) and [anti-gravity](https://robowiki.net/wiki/Anti-Gravity_Movement) movement,
+where it always tries to move away from its current position while keeping a 90° angle to opponents.
+
+### Energy management
+
+Not much so far. It just stops firing if its energy is 1 or less.
+
 
 
 # Credits
