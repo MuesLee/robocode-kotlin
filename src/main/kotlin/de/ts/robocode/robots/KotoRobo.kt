@@ -24,9 +24,9 @@ class KotoRobo : AdvancedRobot() {
         val TARGETING_STATISTICS: MutableMap<String, MutableMap<Int, TargetingStatistics>> = HashMap()
     }
 
-    private var enemies: MutableMap<String, Enemy> = HashMap()
+    private val enemies: MutableMap<String, Enemy> = HashMap()
 
-    private var bulletTracker: MutableMap<Bullet, ShotAttempt> = HashMap()
+    private val bulletTracker: MutableMap<Bullet, ShotAttempt> = HashMap()
 
     private var target: Enemy? = null
     private var nextDestination: Point2D.Double = Point2D.Double()
