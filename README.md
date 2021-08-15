@@ -16,7 +16,7 @@ To see the robot in action simply run:
 
 ## Build
 
-This project uses `gradle` for the dependencies and provides some extra tasks. 
+This project uses `gradle` as a build tool and provides some extra convenience tasks. 
 Most of the paths and stuff are configurable in the `gradle.properties` 
 
 ### roboJar
@@ -41,7 +41,7 @@ This task is executed after each gradle `clean` and deletes the generated robot 
 ### startRobocode
 
 Executes every task mentioned above and starts the real `Robocode` battle using the generated `testBattle.battle`. 
-Lay back and watch you robot fight.
+Lay back and watch your robot fight.
 
 ## Test
 
