@@ -108,9 +108,7 @@ class KotoRobo : AdvancedRobot() {
     private fun attackTarget(target: Enemy) {
         shootTarget(target)
 
-        val distanceToNextDestination = currentPosition().distance(nextDestination)
-
-        if (distanceToNextDestination < MINIMUM_MOVEMENT_DISTANCE) {
+        if (currentPosition().distance(nextDestination) < MINIMUM_MOVEMENT_DISTANCE) {
             val battleField = Rectangle2D.Double(
                 HALF_ROBOT_SIZE,
                 HALF_ROBOT_SIZE,
@@ -118,7 +116,7 @@ class KotoRobo : AdvancedRobot() {
                 battleFieldHeight - HALF_ROBOT_SIZE * 2
             )
 
-           findNextDestination(target, battleField)
+            findNextDestination(target, battleField)
         }
         moveDirection = 1
 
@@ -128,7 +126,7 @@ class KotoRobo : AdvancedRobot() {
             moveDirection = -1
         }
 
-        setAhead(distanceToNextDestination * moveDirection)
+        setAhead(currentPosition().distance(nextDestination) * moveDirection)
         setTurnRightRadians(Utils.normalRelativeAngle(angle).also { angle = it })
     }
 
