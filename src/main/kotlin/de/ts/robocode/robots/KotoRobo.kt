@@ -191,7 +191,7 @@ class KotoRobo : AdvancedRobot() {
 
         if (bestStrategy == null) bestStrategy = statsForThisTarget.values.maxOrNull()!!.targetingType
 
-        println("${target.name} HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]!!.accuracy()} LINEAR ACC ${statsForThisTarget[LINEAR_TARGETING]?.accuracy()}")
+        println("${target.name} HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]?.accuracy()} LINEAR ACC ${statsForThisTarget[LINEAR_TARGETING]?.accuracy()}")
         println("best strat is $bestStrategy")
 
         return bestStrategy
@@ -200,9 +200,9 @@ class KotoRobo : AdvancedRobot() {
     private fun headOnTargeting(target: Enemy) {
         setTurnGunRightRadians(Utils.normalRelativeAngle(target.pos.angleTo(currentPosition()) - gunHeadingRadians))
 
-        if (hasTarget() && gunTurnRemaining <= 0.5 && energy > 1 && gunHeat == 0.0) {
+        if (canFireBullet()) {
             val firedBullet =
-                setFireBullet((energy / 6.0).coerceAtMost(1300.0 / target.distance).coerceAtMost(target.energy / 3.0))
+                setFireBullet(computeFirePower(target))
 
             TARGETING_STATISTICS.putIfAbsent(
                 target.name,
@@ -219,7 +219,7 @@ class KotoRobo : AdvancedRobot() {
 
     private fun linearTargeting(target: Enemy) {
 
-        val firePower = (energy / 6.0).coerceAtMost(1300.0 / target.distance).coerceAtMost(target.energy / 3.0)
+        val firePower = computeFirePower(target)
 
         val estimatedTimeToHit = time + (target.distance / (20 - (3 * firePower))).toInt()
 
@@ -233,7 +233,7 @@ class KotoRobo : AdvancedRobot() {
 
         setTurnGunLeftRadians(normaliseBearing(gunOffset))
 
-        if (gunTurnRemaining <= 0.5 && energy > 1 && gunHeat == 0.0) {
+        if (canFireBullet()) {
             val firedBullet = setFireBullet(firePower)
             TARGETING_STATISTICS.putIfAbsent(
                 target.name,
@@ -247,6 +247,8 @@ class KotoRobo : AdvancedRobot() {
         }
     }
 
+    private fun canFireBullet() = gunTurnRemaining <= 0.5 && energy > 1 && gunHeat == 0.0
+
     override fun onPaint(g: Graphics2D) {
         if (!hasTarget()) return
         val targetX = target!!.pos.x.toInt()
@@ -255,7 +257,7 @@ class KotoRobo : AdvancedRobot() {
         g.drawLine(targetX, targetY, x.toInt(), y.toInt())
         g.fillRect(targetX - 18, targetY - 18, 36, 36)
 
-        val firePower = (energy / 6.0).coerceAtMost(1300.0 / target!!.distance).coerceAtMost(target!!.energy / 3.0)
+        val firePower = computeFirePower(target!!)
 
         val estimatedTimeToHit = time + (target!!.distance / (20 - (3 * firePower))).toInt()
 
@@ -271,6 +273,9 @@ class KotoRobo : AdvancedRobot() {
         g.drawLine(estimatedX, estimatedY, x.toInt(), y.toInt())
         g.fillRect(estimatedX - 18, estimatedY - 18, 36, 36)
     }
+
+    private fun computeFirePower(target: Enemy) =
+        (energy / 6.0).coerceAtMost(1300.0 / target.distance).coerceAtMost(target.energy / 3.0)
 
     private fun currentPosition(): Point2D.Double {
         return Point2D.Double(x, y)
