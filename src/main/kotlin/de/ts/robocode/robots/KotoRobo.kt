@@ -152,13 +152,15 @@ class KotoRobo : AdvancedRobot() {
     private fun adjustRadar() {
         var radarOffset = 360.0
 
-        if (knowsEveryLivingRobot() && hasTarget() && time - target!!.timeOfScan < 4) {
+        if (knowsEveryLivingRobot() && hasTarget() && hasCurrentInformationAboutTarget()) {
             radarOffset = radarHeadingRadians - absbearing(currentPosition(), target!!.pos)
 
             if (radarOffset < 0) radarOffset -= PI / 8 else radarOffset += PI / 8
         }
         setTurnRadarLeftRadians(normaliseBearing(radarOffset))
     }
+
+    private fun hasCurrentInformationAboutTarget() = if (target == null) false else time - target!!.timeOfScan < 4
 
     private fun knowsEveryLivingRobot() = others == enemies.size
 
@@ -201,19 +203,8 @@ class KotoRobo : AdvancedRobot() {
         setTurnGunRightRadians(Utils.normalRelativeAngle(target.pos.angleTo(currentPosition()) - gunHeadingRadians))
 
         if (canFireBullet()) {
-            val firedBullet =
-                setFireBullet(computeFirePower(target))
-
-            TARGETING_STATISTICS.putIfAbsent(
-                target.name,
-                mutableMapOf(
-                    LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING),
-                    HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING)
-                )
-            )
-            TARGETING_STATISTICS[target.name]!![HEAD_ON_TARGETING]!!.shotsFired++
-
-            bulletTracker[firedBullet] = ShotAttempt(target.name, HEAD_ON_TARGETING)
+            val firedBullet = setFireBullet(computeFirePower(target))
+            trackBullet(firedBullet, target, HEAD_ON_TARGETING)
         }
     }
 
@@ -235,16 +226,20 @@ class KotoRobo : AdvancedRobot() {
 
         if (canFireBullet()) {
             val firedBullet = setFireBullet(firePower)
-            TARGETING_STATISTICS.putIfAbsent(
-                target.name,
-                mutableMapOf(
-                    LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING),
-                    HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING)
-                )
-            )
-            TARGETING_STATISTICS[target.name]!![LINEAR_TARGETING]!!.shotsFired++
-            bulletTracker[firedBullet] = ShotAttempt(target.name, LINEAR_TARGETING)
+            trackBullet(firedBullet, target, LINEAR_TARGETING)
         }
+    }
+
+    private fun trackBullet(bullet: Bullet, target: Enemy, targetingType: Int) {
+        TARGETING_STATISTICS.putIfAbsent(
+            target.name,
+            mutableMapOf(
+                LINEAR_TARGETING to TargetingStatistics(LINEAR_TARGETING),
+                HEAD_ON_TARGETING to TargetingStatistics(HEAD_ON_TARGETING)
+            )
+        )
+        TARGETING_STATISTICS[target.name]!![targetingType]!!.shotsFired++
+        bulletTracker[bullet] = ShotAttempt(target.name, targetingType)
     }
 
     private fun canFireBullet() = gunTurnRemaining <= 0.5 && energy > 1 && gunHeat == 0.0
