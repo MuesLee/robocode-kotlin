@@ -6,7 +6,7 @@ import java.awt.Color
 import java.awt.Graphics2D
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
-import kotlin.collections.HashMap
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.*
 
 
@@ -16,17 +16,21 @@ class KotoRobo : AdvancedRobot() {
         private const val MINIMUM_MOVEMENT_DISTANCE: Int = 15
         private const val HALF_ROBOT_SIZE: Double = 18.0
 
+        private const val SHOTS_NEEDED_TO_COMPUTE_ACCURACY: Int = 5
+        private const val THRESHOLD_FOR_ATTACKING_RAMMING_BOT: Int = 50
+
+
         const val LINEAR_TARGETING = 1
         const val HEAD_ON_TARGETING = 0
         val ALL_TARGETING_STRATEGIES = listOf(HEAD_ON_TARGETING, LINEAR_TARGETING)
 
         @JvmStatic
-        val TARGETING_STATISTICS: MutableMap<String, MutableMap<Int, TargetingStatistics>> = HashMap()
+        val TARGETING_STATISTICS: MutableMap<String, MutableMap<Int, TargetingStatistics>> = ConcurrentHashMap()
     }
 
     private val enemies: MutableMap<String, Enemy> = HashMap()
 
-    private val bulletTracker: MutableMap<Bullet, ShotAttempt> = HashMap()
+    val bulletTracker: MutableMap<Bullet, ShotAttempt> = HashMap()
 
     private var target: Enemy? = null
     private var nextDestination: Point2D.Double = Point2D.Double()
@@ -41,8 +45,6 @@ class KotoRobo : AdvancedRobot() {
         setTurnRadarRightRadians(Double.POSITIVE_INFINITY)
         nextDestination = currentPosition()
 
-        enemies.clear()
-        bulletTracker.clear()
     }
 
     override fun run() {
@@ -50,11 +52,20 @@ class KotoRobo : AdvancedRobot() {
 
         do {
             adjustRadar()
-            if (hasTarget() && knowsEveryLivingRobot()) {
+            target = chooseTarget(enemies, TARGETING_STATISTICS)
+            if (hasTarget()) {
                 attackTarget(target!!)
             }
             execute()
         } while (true)
+    }
+
+    override fun onDeath(event: DeathEvent?) {
+        println(TARGETING_STATISTICS)
+    }
+
+    override fun onRoundEnded(event: RoundEndedEvent?) {
+        println(TARGETING_STATISTICS)
     }
 
     override fun onScannedRobot(e: ScannedRobotEvent) {
@@ -72,14 +83,6 @@ class KotoRobo : AdvancedRobot() {
         )
 
         enemies[e.name] = scannedEnemy
-
-        if (scannedEnemy.name == target?.name) {
-            target = scannedEnemy
-        }
-
-        if (target == null || e.distance < target!!.distance) {
-            target = scannedEnemy
-        }
     }
 
     override fun onRobotDeath(e: RobotDeathEvent) {
@@ -105,18 +108,43 @@ class KotoRobo : AdvancedRobot() {
         bulletTracker.remove(event.bullet)
     }
 
+    fun chooseTarget(
+        enemiesByName: MutableMap<String, Enemy>,
+        targetingStatisticsByEnemyName: MutableMap<String, MutableMap<Int, TargetingStatistics>>
+    ): Enemy? {
+        val nearestEnemy = enemiesByName.values.minByOrNull { it.distance } ?: return null
+
+        if (nearestEnemy.distance <= THRESHOLD_FOR_ATTACKING_RAMMING_BOT) {
+            println("Targetting rammer ${nearestEnemy.name}")
+            return nearestEnemy
+        }
+
+        val easyToHitAndAlive = targetingStatisticsByEnemyName
+            .filter { it.key in enemiesByName }
+            .mapValues { ts -> ts.value.values.maxByOrNull { it.accuracy() } }
+            .filter { it.value!!.accuracy() >= 50 }
+            .maxByOrNull { it.value!!.accuracy() }
+
+        if (easyToHitAndAlive != null) {
+            return enemiesByName.getOrDefault(easyToHitAndAlive.key, nearestEnemy)
+        }
+
+        val firstTargetNotShotYet = enemiesByName
+            .filter { it.key !in targetingStatisticsByEnemyName.keys }
+            .firstNotNullOfOrNull { it.value }
+
+        return firstTargetNotShotYet ?: nearestEnemy
+    }
+
+    override fun onHitRobot(event: HitRobotEvent) {
+        findNextDestination(enemies.getOrDefault(event.name, enemies.values.first()), 10)
+    }
+
     private fun attackTarget(target: Enemy) {
         shootTarget(target)
 
         if (currentPosition().distance(nextDestination) < MINIMUM_MOVEMENT_DISTANCE) {
-            val battleField = Rectangle2D.Double(
-                HALF_ROBOT_SIZE,
-                HALF_ROBOT_SIZE,
-                battleFieldWidth - HALF_ROBOT_SIZE * 2,
-                battleFieldHeight - HALF_ROBOT_SIZE * 2
-            )
-
-            findNextDestination(target, battleField)
+            findNextDestination(target)
         }
         moveDirection = 1
 
@@ -131,9 +159,15 @@ class KotoRobo : AdvancedRobot() {
     }
 
     private fun findNextDestination(
-        target: Enemy,
-        battleField: Rectangle2D.Double
+        target: Enemy, computationLimit: Int = 200
     ) {
+        val battleField = Rectangle2D.Double(
+            HALF_ROBOT_SIZE,
+            HALF_ROBOT_SIZE,
+            battleFieldWidth - HALF_ROBOT_SIZE * 2,
+            battleFieldHeight - HALF_ROBOT_SIZE * 2
+        )
+
         var testPoint: Point2D.Double?
         var i = 0
         do {
@@ -144,13 +178,13 @@ class KotoRobo : AdvancedRobot() {
             if (battleField.contains(testPoint) && ratePoint(testPoint) < ratePoint(nextDestination)) {
                 nextDestination = testPoint
             }
-        } while (i++ < 200)
+        } while (i++ < computationLimit)
     }
 
     private fun adjustRadar() {
         var radarOffset = 360.0
 
-        if (knowsEveryLivingRobot() && hasTarget() && hasCurrentInformationAboutTarget()) {
+        if (enemies.size == 1 && hasTarget()) {
             radarOffset = radarHeadingRadians - absbearing(currentPosition(), target!!.pos)
 
             if (radarOffset < 0) radarOffset -= PI / 8 else radarOffset += PI / 8
@@ -163,15 +197,18 @@ class KotoRobo : AdvancedRobot() {
     private fun knowsEveryLivingRobot() = others == enemies.size
 
     private fun shootTarget(target: Enemy) {
-        when (chooseBestTargetingStrategy(target)) {
+        when (chooseBestTargetingStrategy(target, TARGETING_STATISTICS)) {
             HEAD_ON_TARGETING -> headOnTargeting(target)
             LINEAR_TARGETING -> linearTargeting(target)
             else -> headOnTargeting(target)
         }
     }
 
-    fun chooseBestTargetingStrategy(target: Enemy): Int {
-        val statsForThisTarget = TARGETING_STATISTICS[target.name] ?: return HEAD_ON_TARGETING
+    fun chooseBestTargetingStrategy(
+        target: Enemy,
+        targetingStatistics: MutableMap<String, MutableMap<Int, TargetingStatistics>>
+    ): Int {
+        val statsForThisTarget = targetingStatistics[target.name] ?: return HEAD_ON_TARGETING
 
         var bestStrategy: Int? = null
 
@@ -182,7 +219,8 @@ class KotoRobo : AdvancedRobot() {
             }
 
             if (strategy in statsForThisTarget &&
-                (statsForThisTarget[strategy]!!.shotsFired < 10 || statsForThisTarget[strategy]!!.accuracy() >= 75)
+                (statsForThisTarget[strategy]!!.shotsFired < SHOTS_NEEDED_TO_COMPUTE_ACCURACY
+                        || statsForThisTarget[strategy]!!.accuracy() >= 75)
             ) {
                 bestStrategy = strategy
                 break
@@ -190,9 +228,6 @@ class KotoRobo : AdvancedRobot() {
         }
 
         if (bestStrategy == null) bestStrategy = statsForThisTarget.values.maxOrNull()!!.targetingType
-
-        println("${target.name} HEAD ON ACC ${statsForThisTarget[HEAD_ON_TARGETING]?.accuracy()} LINEAR ACC ${statsForThisTarget[LINEAR_TARGETING]?.accuracy()}")
-        println("best strat is $bestStrategy")
 
         return bestStrategy
     }
@@ -228,7 +263,7 @@ class KotoRobo : AdvancedRobot() {
         }
     }
 
-    private fun trackBullet(bullet: Bullet, target: Enemy, targetingType: Int) {
+    fun trackBullet(bullet: Bullet, target: Enemy, targetingType: Int) {
         TARGETING_STATISTICS.putIfAbsent(
             target.name,
             mutableMapOf(
@@ -322,6 +357,11 @@ class KotoRobo : AdvancedRobot() {
         } else 0.0
     }
 
+    fun reset() {
+        TARGETING_STATISTICS.clear()
+        enemies.clear()
+    }
+
     data class Enemy(
         val name: String,
         var pos: Point2D.Double,
@@ -348,7 +388,7 @@ class KotoRobo : AdvancedRobot() {
 
     }
 
-    private data class ShotAttempt(val targetName: String, val targetingType: Int)
+    data class ShotAttempt(val targetName: String, val targetingType: Int)
 
     class TargetingStatistics(
         val targetingType: Int,
